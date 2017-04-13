@@ -3,9 +3,8 @@ import numpy as np
 
 def load_mnist_data(file_name, offset=0, batch_max=10):
     """
-        Takes a MNIST file as input, with offset (in examples) and max batch size. 
+        Takes a text file as input, with offset (in examples) and max batch size. 
         Returns: 2d numpy array of shape (batch_max, 784)
-        Throws: 
     """
     objects = [] # examples
     try:
@@ -28,6 +27,26 @@ def load_mnist_data(file_name, offset=0, batch_max=10):
                     end=True
                     break
             ptr = openfile.tell()/840 # record position in file
+        return {'data': np.vstack(objects), 'offset':ptr, 'end':end}
+    except IOError:
+        raise IOError("Unable to open file %s." % file_name)
+
+def load_mnist_labels(file_name, offset=0, batch_max=10):
+    """
+        Takes a text file as input, with offset (in examples) and max batch size.
+        Returns: 2d numpy array of shape (batch_max, 1)
+    """
+    objects = []
+    try:
+        with (open(file_name, "r")) as openfile:
+            openfile.seek(offset * 3)
+            end = False
+            try:
+                for _ in range(batch_max):
+                    objects.append(np.array(int(openfile.readline())))
+                ptr = openfile.tell()/3
+            except EOFError:
+                end = True
         return {'data': np.vstack(objects), 'offset':ptr, 'end':end}
     except IOError:
         raise IOError("Unable to open file %s." % file_name)

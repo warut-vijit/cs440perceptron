@@ -5,29 +5,33 @@ import logging
 import numpy as np
 import sys
 
-LEARNING_RATE = 0.01
-BATCH_SIZE = 10
-EPOCHS = 19000
-TEST_BATCH_SIZE = 20
+LEARNING_RATE = 0.005
+BATCH_SIZE = 40
+EPOCHS = 30000
+TEST_BATCH_SIZE = 100
 REPORT = 600
-REGULARIZATION_STRENGTH = 0.0
 
 class Perceptron:
     
     def __init__(self, input_size, output_size):
-        self.weight = np.random.uniform(-0.1, 0.1, (input_size, output_size))
+        # the input_size + 1 is used for bias
+        self.weight = np.random.randn(input_size + 1, output_size) * 0.05
 
     def feedforward(self, input_vector):
-        return np.dot(input_vector, self.weight)
+        return np.dot(np.concatenate((input_vector,np.ones((input_vector.shape[0],1))), axis=1), self.weight)
 
     def train(self, input_set, label_set, iter=1):
         for _ in xrange(iter):
             error = label_set - self.feedforward(input_set) # pure error
-            self.weight += LEARNING_RATE * np.dot(input_set.T, error)
+            self.weight += LEARNING_RATE * np.dot(np.concatenate((input_set,np.ones((input_set.shape[0],1))), axis=1).T, error) / input_set.shape[0]
 perceptrons = []
 for label in xrange(10):
     net = Perceptron(262, 1)
     perceptrons.append(net)
+
+# get test data
+test_input = load_mnist_data('testimages', offset=0, batch_max=TEST_BATCH_SIZE)['data']
+test_label = load_mnist_labels('testlabels', offset=0, batch_max=TEST_BATCH_SIZE)['data']
 
 correct = []
 for step in xrange(0,EPOCHS,REPORT):
@@ -37,10 +41,7 @@ for step in xrange(0,EPOCHS,REPORT):
         train_label = load_mnist_labels('traininglabels', offset=offset, batch_max=BATCH_SIZE)['data']
         filtered_label = train_label==p[0]
         p[1].train(train_input, filtered_label, iter=REPORT)
-    logging.error(np.dot(np.ones((1,262)), perceptrons[0].weight))
-    offset = 0
-    test_input = load_mnist_data('testimages', offset=offset, batch_max=TEST_BATCH_SIZE)['data']
-    test_label = load_mnist_labels('testlabels', offset=offset, batch_max=TEST_BATCH_SIZE)['data']
+    logging.error(np.dot(np.ones((1,263)), perceptrons[0].weight))
     test_sum = 0
     for test_item in xrange(TEST_BATCH_SIZE):
         labels = np.stack([p.feedforward(test_input) for p in perceptrons], axis=2)[test_item][0]
@@ -49,6 +50,6 @@ for step in xrange(0,EPOCHS,REPORT):
         test_sum += (labels_sorted[0][0]==correct_label) + 0.0 * (labels_sorted[1][0]==correct_label) + 0.0 * (labels_sorted[2][0]==correct_label)
     correct.append(test_sum)
     logging.warning("Finished step: "+str(step))
-    LEARNING_RATE *= 0.7
+    LEARNING_RATE *= 0.97
 pyplot.plot(correct)
 pyplot.show()

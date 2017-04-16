@@ -27,7 +27,7 @@ def load_mnist_data(file_name, offset=0, batch_max=10):
                     end=True
                     break
             ptr = openfile.tell()/840 # record position in file
-        return {'data': np.vstack(objects), 'offset':ptr, 'end':end}
+        return {'data': np.vstack(objects)[:,::3], 'offset':ptr, 'end':end}
     except IOError:
         raise IOError("Unable to open file %s." % file_name)
 
@@ -47,6 +47,6 @@ def load_mnist_labels(file_name, offset=0, batch_max=10):
                 ptr = openfile.tell()/3
             except EOFError:
                 end = True
-        return {'data': np.vstack(objects), 'offset':ptr, 'end':end}
+        return {'data': np.vstack(objects)[:,::3], 'offset':ptr, 'end':end}
     except IOError:
         raise IOError("Unable to open file %s." % file_name)

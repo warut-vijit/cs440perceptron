@@ -6,6 +6,9 @@ import math
 import sys
 
 LEARNING_RATE = 0.05
+EPOCHS = 3000
+REPORT = 150
+TEST_BATCH_SIZE = 100
 DROPOUT_P = 0.5
 
 # Helper functions for output squashing and backprop
@@ -27,7 +30,7 @@ class NN_Layer:
 
     def feed_forward(self, input_vector):
         self.input = np.concatenate((input_vector,np.ones((input_vector.shape[0],1))), axis=1)
-        self.output = np.dot(self.input, self.weight)
+        self.output = np.dot(self.input, self.weights)
         return tanh(self.output)
 
 class NN_Network:
@@ -48,48 +51,34 @@ class NN_Network:
         error = expected-output # gradient of the quadratic cost function
         for layer in self.layers[::-1]:
             delta = np.multiply(error, tanh_(layer.output))
-            error = np.dot(delta, layer.weights.T)
+            error = np.dot(delta, layer.weights.T)[:,:-1]
             layer.weights += np.dot(layer.input.T, delta) * LEARNING_RATE
 
-    def train(self, arr):
+    def train(self, arr, epochs):
         """Takes a 2D array of floats as input, formatted with last item as labels and all others as attributes"""
-        for _ in range(50):
-            for row in arr:
-                forward = self.feed_forward(np.matrix(row[:-1]))
-                self.backprop(forward,row[-1])
+        for x in range(epochs):
+            forward = self.feed_forward(np.matrix(arr[:,:-1]))
+            self.backprop(forward,arr[:,-1:])
+            if x%REPORT == 0:
+                logging.warning("fin l'epoch "+str(x))
 
     def test(self, arr):
-        sum_error = 0
-        for row in arr:
-            ff_result = float(self.feed_forward(row[:-1]))
-            print str(row[-1]) + "  -->  " + str(ff_result)
-            sum_error += abs(row[-1]-ff_result)
+        ff_result = self.feed_forward(arr[:,:-1])
+        for inx in xrange(len(ff_result)):
+            logging.error(str(ff_result[inx])+" : "+str(arr[inx,-1]))
+        sum_error = np.sum(abs(ff_result-arr[:,-1:]))
         return sum_error/len(arr)
 
 if __name__ == "__main__":
-    if "-fold" != sys.argv[1]:
         # Do 20% testing and 80% training by default
-        data = load_csv("data/verify.csv")
+        # get test data
+        train_input = load_mnist_data('trainingimages', offset=0, batch_max=TEST_BATCH_SIZE)['data']
+        train_label = load_mnist_labels('traininglabels', offset=0, batch_max=TEST_BATCH_SIZE)['data']
+        data = np.concatenate((train_input, train_label), axis=1)
         if int(sys.argv[1]) != len(data[0])-1:
             raise ValueError("\033[91mInput layer ("+sys.argv[1]+") and data ("+str(len(data[0])-1)+") do not match. Terminating...\033[0m")
         training = data[:4*len(data)/5]
         test = data[4*len(data)/5:]
         neural_net = NN_Network([int(arg) for arg in sys.argv[1:]])
-        neural_net.train(training)
+        neural_net.train(training, EPOCHS)
         print "\nAverage error on test is: \033[91m" + str(neural_net.test(test))
-    else:
-        try:
-            fold_number = int(sys.argv[2])
-        except ValueError:
-            raise SyntaxError("Syntax error in specifying number of folds.")
-        data = load_csv("data/verify.csv")
-        if int(sys.argv[3]) != len(data[0])-1:
-            raise ValueError("\033[91mInput layer ("+sys.argv[3]+") and data ("+str(len(data[0])-1)+") do not match. Terminating...\033[0m")
-        for fold in range(fold_number):
-            neural_net = NN_Network([int(arg) for arg in sys.argv[3:]])
-            training1 = data[:fold*len(data)/fold_number]
-            test = data[fold*len(data)/fold_number : (fold+1)*len(data)/fold_number]
-            training2 = data[(fold+1)*len(data)/fold_number:]
-            neural_net.train(training1)
-            neural_net.train(training2)
-            print "\nAverage error on fold #" + str(fold) + " test is: " + str(neural_net.test(test))
